@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>花砖琴</title>
+<style>
+  :root {
+    --fq-night: #2a2348;
+    --fq-night-deep: #17122b;
+    --fq-ink: #f6e9e4;
+    --fq-ink-soft: #c9b9d6;
+    --fq-gold: #ffd98a;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background:
+      radial-gradient(ellipse at 50% 55%, #4a3d78 0%, var(--fq-night) 45%, var(--fq-night-deep) 100%);
+    color: var(--fq-ink);
+    font-family: "Songti SC", "Noto Serif SC", "STSong", Georgia, serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 16px;
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .fq-title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 0.4em;
+    padding-left: 0.4em; /* 抵消末字的字距，让标题视觉居中 */
+    color: var(--fq-gold);
+    text-shadow: 0 0 18px rgba(255, 217, 138, 0.45);
+  }
+  .fq-stage {
+    width: min(calc(100vw - 32px), calc(100dvh - 206px));
+    aspect-ratio: 1;
+    flex: none;
+  }
+  .fq-floor {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    touch-action: none;
+    filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.5));
+  }
+  .fq-stone { cursor: pointer; outline: none; }
+  .fq-stone:focus-visible .fq-stone-base { stroke: var(--fq-gold); stroke-width: 5; }
+  .fq-hint {
+    margin: 0;
+    font-size: 14px;
+    letter-spacing: 0.12em;
+    color: var(--fq-ink-soft);
+    text-align: center;
+  }
+  .fq-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .fq-btn {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    font: inherit;
+    font-size: 15px;
+    line-height: 1;
+    color: var(--fq-ink);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 217, 138, 0.45);
+    border-radius: 999px;
+    height: 40px;
+    padding: 0 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, opacity 0.2s;
+  }
+  .fq-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.12); }
+  .fq-btn:disabled { opacity: 0.38; cursor: default; }
+  .fq-btn:focus-visible { outline: 2px solid var(--fq-gold); outline-offset: 3px; }
+  .fq-btn[data-on="true"] { background: rgba(255, 125, 142, 0.22); border-color: #ff9aa8; }
+  .fq-btn-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ff7d8e;
+    flex: none;
+  }
+  .fq-btn[data-on="true"] .fq-btn-dot { animation: fq-pulse 1s ease-in-out infinite; }
+  @keyframes fq-pulse { 50% { opacity: 0.25; } }
+  @media (prefers-reduced-motion: reduce) {
+    .fq-btn[data-on="true"] .fq-btn-dot { animation: none; }
+  }
+  .fq-trail { pointer-events: none; mix-blend-mode: screen; }
+  .fq-fx { pointer-events: none; }
+</style>
+</head>
+<body>
+  <h1 class="fq-title">花砖琴</h1>
+
+  <div class="fq-stage">
+    <svg class="fq-floor" id="fq-floor" viewBox="-500 -500 1000 1000" role="group" aria-label="十二块花砖，每块一个音">
+      <defs>
+        <filter id="fq-marble" x="0" y="0" width="100%" height="100%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="4" seed="7"/>
+          <feColorMatrix values="0 0 0 0 0.87  0 0 0 0 0.50  0 0 0 0 0.50  1.5 0 0 0 -0.45"/>
+          <feComposite in2="SourceGraphic" operator="in"/>
+        </filter>
+        <filter id="fq-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="7" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <radialGradient id="fq-center-glow">
+          <stop offset="0" stop-color="#fffbe6" stop-opacity="1"/>
+          <stop offset="0.45" stop-color="#ffe9a8" stop-opacity="0.75"/>
+          <stop offset="1" stop-color="#ffd98a" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="fq-stone-glow">
+          <stop offset="0.55" stop-color="#fff6d6" stop-opacity="0.95"/>
+          <stop offset="1" stop-color="#ffd98a" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- 地板底 -->
+      <circle r="480" fill="#f4bfb3"/>
+      <circle r="480" fill="#000" filter="url(#fq-marble)"/>
+      <circle r="480" fill="none" stroke="#fff7f2" stroke-width="6"/>
+      <g id="fq-lines" fill="none" stroke="#fff7f2" stroke-width="3" stroke-linejoin="round"></g>
+
+      <!-- 中心 -->
+      <circle id="fq-center" r="230" fill="url(#fq-center-glow)" opacity="0" class="fq-fx"/>
+
+      <g id="fq-stones"></g>
+      <g id="fq-trail" class="fq-trail" filter="url(#fq-glow)"></g>
+      <g id="fq-fx" class="fq-fx"></g>
+    </svg>
+  </div>
+
+  <div class="fq-controls">
+    <button class="fq-btn" id="fq-rec" type="button"><span class="fq-btn-dot"></span><span id="fq-rec-label">录制</span></button>
+    <button class="fq-btn" id="fq-play" type="button" disabled>暂停</button>
+    <button class="fq-btn" id="fq-clear" type="button" disabled>清空</button>
+  </div>
+
+  <p class="fq-hint" id="fq-hint" aria-live="polite">点一下，或按住拖过花砖</p>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (name, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, name);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+
+  // ---------- 几何 ----------
+  const N = 12, RING = 340, STONE_R = 74, INNER = 236, OUTER = 444;
+  const pos = i => {
+    const a = (i / N) * Math.PI * 2 - Math.PI / 2;
+    return [Math.cos(a) * RING, Math.sin(a) * RING];
+  };
+  const polar = (r, deg) => {
+    const a = (deg - 90) * Math.PI / 180;
+    return [r * Math.cos(a), r * Math.sin(a)];
+  };
+
+  // ---------- 地板线条 ----------
+  const lines = document.getElementById('fq-lines');
+  el('circle', { r: INNER }, lines);
+  el('circle', { r: OUTER }, lines);
+  for (let i = 0; i < N; i++) {
+    const [x1, y1] = polar(INNER, i * 30 + 15), [x2, y2] = polar(OUTER, i * 30 + 15);
+    el('line', { x1, y1, x2, y2 }, lines);
+  }
+  // 中心的十二角星：每个顶点连到第 5 个顶点
+  let star = '';
+  for (let i = 0; i < N; i++) {
+    const [x1, y1] = polar(INNER, i * 30), [x2, y2] = polar(INNER, (i + 5) * 30);
+    star += `M${x1.toFixed(1)},${y1.toFixed(1)}L${x2.toFixed(1)},${y2.toFixed(1)}`;
+  }
+  el('path', { d: star, 'stroke-width': 2, opacity: 0.85 }, lines);
+  el('circle', { r: 61, 'stroke-width': 2, opacity: 0.85 }, lines);
+
+  // ---------- 花 ----------
+  // 每层：n 花瓣数, len 长, wid 半宽, sharp 尖(1)/圆(0), fill, rot 起始角
+  const FLOWERS = [
+    { base: '#fbe3e0', center: '#f2c14e', layers: [
+      { n: 5, len: 50, wid: 30, sharp: 0, fill: '#f29db0' }, { n: 5, len: 32, wid: 20, sharp: 0, fill: '#f7bccb', rot: 36 } ] },
+    { base: '#f1ecfb', center: '#f6e27a', layers: [
+      { n: 6, len: 54, wid: 17, sharp: 1, fill: '#ffffff' } ] },
+    { base: '#fdebd8', center: '#f2b632', cr: 12, layers: [
+      { n: 16, len: 50, wid: 8, sharp: 0, fill: '#fffdf8' } ] },
+    { base: '#f6e4f6', center: '#fff3b0', layers: [
+      { n: 5, len: 46, wid: 26, sharp: 0, fill: '#b98be0' }, { n: 5, len: 20, wid: 8, sharp: 1, fill: '#7d55b8', rot: 0 } ] },
+    { base: '#e6f1fb', center: '#fff3b0', layers: [
+      { n: 6, len: 54, wid: 15, sharp: 1, fill: '#8fb8ee' }, { n: 6, len: 34, wid: 11, sharp: 1, fill: '#c3dbf8', rot: 30 } ] },
+    { base: '#fbe3ee', center: '#ffe9a8', layers: [
+      { n: 8, len: 48, wid: 16, sharp: 0, fill: '#e06aa6' }, { n: 8, len: 30, wid: 11, sharp: 0, fill: '#f09cc4', rot: 22.5 } ] },
+    { base: '#e4f5ee', center: '#f2c14e', layers: [
+      { n: 4, len: 50, wid: 30, sharp: 0, fill: '#9fdcc6' }, { n: 4, len: 34, wid: 12, sharp: 1, fill: '#ffffff', rot: 45 } ] },
+    { base: '#fdf0d5', center: '#d98a2b', cr: 11, layers: [
+      { n: 12, len: 52, wid: 11, sharp: 1, fill: '#f8cf5c' } ] },
+    { base: '#efe6fb', center: '#f6e27a', layers: [
+      { n: 5, len: 52, wid: 20, sharp: 1, fill: '#d7c2f5' }, { n: 5, len: 30, wid: 7, sharp: 1, fill: '#9d7bd8' } ] },
+    { base: '#fde5dc', center: '#fff3b0', layers: [
+      { n: 7, len: 48, wid: 20, sharp: 0, fill: '#f6a07e' }, { n: 7, len: 28, wid: 12, sharp: 0, fill: '#fbc7ae', rot: 25.7 } ] },
+    { base: '#e3f0f7', center: '#f2c14e', layers: [
+      { n: 10, len: 52, wid: 10, sharp: 0, fill: '#6fa7d6' }, { n: 10, len: 34, wid: 7, sharp: 0, fill: '#b5d5ee', rot: 18 } ] },
+    { base: '#fbe9f3', center: '#f2c14e', layers: [
+      { n: 6, len: 50, wid: 24, sharp: 0, fill: '#ffffff' }, { n: 6, len: 30, wid: 13, sharp: 1, fill: '#f7b3cf', rot: 30 } ] },
+  ];
+  const petalPath = (len, wid, sharp) => sharp
+    ? `M0,0C${wid},${-len * 0.25} ${wid},${-len * 0.7} 0,${-len}C${-wid},${-len * 0.7} ${-wid},${-len * 0.25} 0,0Z`
+    : `M0,0C${wid * 1.3},${-len * 0.3} ${wid * 1.1},${-len} 0,${-len}C${-wid * 1.1},${-len} ${-wid * 1.3},${-len * 0.3} 0,0Z`;
+
+  const drawFlower = (spec, parent) => {
+    const g = el('g', {}, parent);
+    for (const L of spec.layers) {
+      const d = petalPath(L.len, L.wid, L.sharp);
+      for (let k = 0; k < L.n; k++) {
+        el('path', { d, fill: L.fill, stroke: 'rgba(120,80,110,0.28)', 'stroke-width': 1.2,
+          transform: `rotate(${(L.rot || 0) + k * 360 / L.n})` }, g);
+      }
+    }
+    el('circle', { r: spec.cr || 8, fill: spec.center, stroke: 'rgba(120,80,60,0.3)', 'stroke-width': 1 }, g);
+    return g;
+  };
+
+  // ---------- 花砖 ----------
+  const KEYS = ['Digit1','Digit2','Digit3','Digit4','Digit5','Digit6','Digit7','Digit8','Digit9','Digit0','Minus','Equal'];
+  const stonesG = document.getElementById('fq-stones');
+  const stones = FLOWERS.map((spec, i) => {
+    const [x, y] = pos(i);
+    const g = el('g', { class: 'fq-stone', transform: `translate(${x.toFixed(2)},${y.toFixed(2)})`,
+      tabindex: 0, role: 'button', 'aria-label': `第 ${i + 1} 块花砖`, 'data-i': i }, stonesG);
+    const glow = el('circle', { r: STONE_R + 26, fill: 'url(#fq-stone-glow)', opacity: 0 }, g);
+    el('circle', { class: 'fq-stone-base', r: STONE_R, fill: spec.base, stroke: '#fff7f2', 'stroke-width': 3 }, g);
+    const flower = drawFlower(spec, g);
+    return { g, glow, flower, x, y };
+  });
+
+  // ---------- 声音：八音盒 ----------
+  // C 大调五声音阶，从 C4 往上 12 个音
+  const SEMIS = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26];
+  const freqOf = i => 261.63 * Math.pow(2, SEMIS[i] / 12);
+  let ctx, master;
+  const initAudio = () => {
+    if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -14; comp.ratio.value = 4;
+    comp.connect(ctx.destination);
+    master = ctx.createGain(); master.gain.value = 0.7; master.connect(comp);
+    // 合成一段混响
+    const len = ctx.sampleRate * 2.6, buf = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      for (let k = 0; k < len; k++) d[k] = (Math.random() * 2 - 1) * Math.pow(1 - k / len, 3.2);
+    }
+    const verb = ctx.createConvolver(); verb.buffer = buf;
+    const wet = ctx.createGain(); wet.gain.value = 0.32;
+    master.connect(verb); verb.connect(wet); wet.connect(comp);
+  };
+  const playNote = (i, when, scale = 1) => {
+    initAudio();
+    const f = freqOf(i), t = Math.max(when || 0, ctx.currentTime);
+    // [倍频, 音量, 衰减秒]
+    for (const [mult, vol, dur] of [[1, 0.42, 2.6], [2, 0.16, 1.5], [3, 0.07, 0.9], [5.4, 0.05, 0.25]]) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = f * mult;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol * scale, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(master);
+      o.start(t); o.stop(t + dur + 0.05);
+    }
+  };
+
+  // ---------- 视觉反馈 ----------
+  const trailG = document.getElementById('fq-trail');
+  const fxG = document.getElementById('fq-fx');
+  const center = document.getElementById('fq-center');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const lastBy = { live: -1, loop: -1 };
+  const TRAIL = { live: '#ffe29a', loop: '#ffc2d6' };
+  let energy = 0;
+
+  const fadeOut = (node, ms, from = 1) => {
+    const a = node.animate([{ opacity: from }, { opacity: 0 }], { duration: ms, easing: 'ease-in', fill: 'forwards' });
+    a.onfinish = () => node.remove();
+  };
+
+  // 自己弹的音：立刻发声，并交给录制器
+  const strike = i => {
+    playNote(i);
+    looper.onNote(i);
+    visual(i, 'live');
+  };
+
+  const visual = (i, voice) => {
+    const s = stones[i], last = lastBy[voice], gold = TRAIL[voice];
+
+    s.glow.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 900, easing: 'ease-out' });
+    if (!reduced) s.flower.animate(
+      [{ transform: 'scale(1)' }, { transform: 'scale(1.16)' }, { transform: 'scale(1)' }],
+      { duration: 420, easing: 'cubic-bezier(.2,.9,.3,1)' });
+
+    // 光带：上一块 → 这一块
+    if (last >= 0 && last !== i) {
+      const p = stones[last];
+      const line = el('line', { x1: p.x, y1: p.y, x2: s.x, y2: s.y, stroke: gold, 'stroke-width': voice === 'live' ? 5 : 3.5, 'stroke-linecap': 'round' }, trailG);
+      fadeOut(line, voice === 'live' ? 7000 : 3500, 0.95);
+    } else {
+      const ring = el('circle', { cx: s.x, cy: s.y, r: STONE_R + 8, fill: 'none', stroke: gold, 'stroke-width': 4 }, trailG);
+      fadeOut(ring, 2500, 0.9);
+    }
+    lastBy[voice] = i;
+
+    // 飘起的花瓣
+    if (!reduced) {
+      const color = FLOWERS[i].layers[0].fill;
+      for (let k = 0; k < 7; k++) {
+        const a = Math.random() * Math.PI * 2, d = 60 + Math.random() * 70;
+        const dot = el('ellipse', { cx: s.x, cy: s.y, rx: 7, ry: 4, fill: color, stroke: '#fff', 'stroke-width': 0.8 }, fxG);
+        const anim = dot.animate([
+          { transform: 'translate(0,0) rotate(0deg)', opacity: 1 },
+          { transform: `translate(${Math.cos(a) * d}px,${Math.sin(a) * d - 40}px) rotate(${(Math.random() - 0.5) * 400}deg)`, opacity: 0 }
+        ], { duration: 900 + Math.random() * 500, easing: 'cubic-bezier(.1,.7,.3,1)', fill: 'forwards' });
+        dot.style.transformBox = 'fill-box';
+        dot.style.transformOrigin = 'center';
+        anim.onfinish = () => dot.remove();
+      }
+    }
+
+    energy = Math.min(12, energy + (voice === 'live' ? 1.4 : 0.9));
+  };
+
+  // ---------- 录制与循环 ----------
+  // 状态：idle 空 / armed 等第一个音 / recording 录第一层 / looping 循环中 / overdub 叠加中 / paused 暂停
+  const recBtn = document.getElementById('fq-rec');
+  const recLabel = document.getElementById('fq-rec-label');
+  const playBtn = document.getElementById('fq-play');
+  const clearBtn = document.getElementById('fq-clear');
+  const hintEl = document.getElementById('fq-hint');
+  const idleHint = matchMedia('(hover: hover) and (pointer: fine)').matches
+    ? '点一下，或按住拖过花砖 · 键盘 1 到 = 也能弹'
+    : '点一下，或按住拖过花砖';
+  const HINTS = {
+    armed: '弹第一个音，录制就开始',
+    recording: '正在录 · 弹完点「完成」',
+    looping: '循环中 · 点「叠加」再录一层',
+    overdub: '正在叠加 · 弹完点「完成」',
+    paused: '已暂停',
+  };
+  const MIN_LEN = 0.3, LOOKAHEAD = 0.12;
+
+  const looper = {
+    state: 'idle', events: [], len: 0, start: 0, until: 0, recStart: 0, timer: null,
+
+    set(state) { this.state = state; this.render(); },
+    render() {
+      const s = this.state;
+      const on = s === 'armed' || s === 'recording' || s === 'overdub';
+      recLabel.textContent = on ? '完成' : (s === 'idle' ? '录制' : '叠加');
+      recBtn.dataset.on = on;
+      playBtn.textContent = s === 'paused' ? '播放' : '暂停';
+      playBtn.disabled = !(s === 'looping' || s === 'overdub' || s === 'paused');
+      clearBtn.disabled = s === 'idle' || s === 'armed';
+      hintEl.textContent = HINTS[s] || idleHint;
+    },
+
+    // 循环里的当前位置（秒）
+    pos() { return (((ctx.currentTime - this.start) % this.len) + this.len) % this.len; },
+
+    onNote(i) {
+      // 第一层用系统时钟计时：音频时钟刚创建时会晚一点才开始走
+      const now = performance.now() / 1000;
+      if (this.state === 'armed') {
+        this.recStart = now; this.events = [{ i, t: 0 }]; this.set('recording');
+      } else if (this.state === 'recording') {
+        this.events.push({ i, t: now - this.recStart });
+      } else if (this.state === 'overdub') {
+        this.events.push({ i, t: this.pos() });
+      }
+    },
+
+    run() {
+      clearInterval(this.timer);
+      this.start = ctx.currentTime + 0.03;
+      this.until = this.start - 0.001;
+      lastBy.loop = -1;
+      this.timer = setInterval(() => this.schedule(), 25);
+      this.schedule();
+    },
+    halt() { clearInterval(this.timer); this.timer = null; },
+
+    // 用音频时钟提前排好接下来一小段要响的音
+    schedule() {
+      const now = ctx.currentTime;
+      const a = Math.max(this.until, now - 0.05), b = now + LOOKAHEAD;
+      for (const e of this.events) {
+        const k = Math.floor((a - this.start - e.t) / this.len) + 1;
+        for (let w = this.start + e.t + k * this.len; w <= b; w += this.len) {
+          playNote(e.i, w, 0.8);
+          setTimeout(() => { if (this.timer) visual(e.i, 'loop'); }, Math.max(0, (w - ctx.currentTime) * 1000));
+        }
+      }
+      this.until = b;
+    },
+
+    toggleRec() {
+      initAudio();
+      const s = this.state;
+      if (s === 'idle') this.set('armed');
+      else if (s === 'armed') this.set('idle');
+      else if (s === 'recording') {
+        this.len = Math.max(MIN_LEN, performance.now() / 1000 - this.recStart);
+        this.run(); this.set('looping');
+      }
+      else if (s === 'looping') this.set('overdub');
+      else if (s === 'overdub') this.set('looping');
+      else if (s === 'paused') { this.run(); this.set('overdub'); }
+    },
+    togglePlay() {
+      initAudio();
+      if (this.state === 'paused') { this.run(); this.set('looping'); }
+      else if (this.state === 'looping' || this.state === 'overdub') { this.halt(); this.set('paused'); }
+    },
+    clear() {
+      this.halt(); this.events = []; this.len = 0; this.set('idle');
+    },
+  };
+  recBtn.addEventListener('click', () => looper.toggleRec());
+  playBtn.addEventListener('click', () => looper.togglePlay());
+  clearBtn.addEventListener('click', () => looper.clear());
+  looper.render();
+
+  // 绕着地板边缘走的小光点：循环走到哪了
+  const orbit = el('circle', { r: 8, fill: '#fff3c4', opacity: 0, filter: 'url(#fq-glow)' }, fxG);
+
+  // 中心随弹奏亮起，停下后慢慢暗下去
+  let prev = performance.now();
+  const tick = now => {
+    const dt = (now - prev) / 1000; prev = now;
+    energy = Math.max(0, energy - dt * 1.1);
+    center.setAttribute('opacity', (energy / 12).toFixed(3));
+    if (looper.timer && looper.len) {
+      const [ox, oy] = polar(462, looper.pos() / looper.len * 360);
+      orbit.setAttribute('cx', ox.toFixed(1)); orbit.setAttribute('cy', oy.toFixed(1));
+      orbit.setAttribute('opacity', 1);
+    } else {
+      orbit.setAttribute('opacity', 0);
+    }
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+
+  // ---------- 输入 ----------
+  const floor = document.getElementById('fq-floor');
+  const stoneAt = (x, y) => {
+    const t = document.elementFromPoint(x, y);
+    const g = t && t.closest && t.closest('.fq-stone');
+    return g ? +g.dataset.i : -1;
+  };
+  let down = false, hover = -1;
+  floor.addEventListener('pointerdown', e => {
+    down = true;
+    hover = stoneAt(e.clientX, e.clientY);
+    if (hover >= 0) { strike(hover); e.preventDefault(); }
+  });
+  window.addEventListener('pointermove', e => {
+    if (!down) return;
+    const i = stoneAt(e.clientX, e.clientY);
+    if (i !== hover) { hover = i; if (i >= 0) strike(i); }
+  });
+  const up = () => { down = false; hover = -1; };
+  window.addEventListener('pointerup', up);
+  window.addEventListener('pointercancel', up);
+
+  window.addEventListener('keydown', e => {
+    if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+    let i = KEYS.indexOf(e.code);
+    if (i < 0 && (e.key === 'Enter' || e.key === ' ')) {
+      const g = document.activeElement && document.activeElement.closest && document.activeElement.closest('.fq-stone');
+      if (g) i = +g.dataset.i;
+    }
+    if (i >= 0) { strike(i); e.preventDefault(); }
+    else if (e.code === 'KeyR') looper.toggleRec();
+  });
+
+  window.__fq = { strike, stones, looper };
+})();
+</script>
+</body>
+</html>
